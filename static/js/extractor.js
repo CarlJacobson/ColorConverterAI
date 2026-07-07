@@ -87,4 +87,10 @@ async function onExtract() {
 
 extractBtn.addEventListener('click', onExtract);
 downloadBtn.addEventListener('click', () => saveImage(outputLink.href, outputLink.download || 'palette.png'));
+// Clicking the palette image itself saves via the share sheet too (not a raw file download).
+outputLink.addEventListener('click', (e) => {
+  if (!outputLink.href) return;
+  e.preventDefault();
+  saveImage(outputLink.href, outputLink.download || 'palette.png');
+});
 setupOutputClose(outputDisplay, { link: outputLink, downloadButton: downloadBtn, status });

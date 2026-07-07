@@ -26,7 +26,6 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: clamp(0.5rem, 1.6vw, 1.75rem); /* spacing between tabs grows with the window */
-  margin-left: auto;
   padding-right: clamp(0.5rem, 1.6vw, 1.75rem); /* small gap after the last tab (About) */
   align-self: stretch;
   background-color: #333;
@@ -411,7 +410,11 @@ button::-moz-focus-inner, input[type=reset]::-moz-focus-inner, input[type=submit
 }
 
 .top-bar-title {
-  margin: 0 0 0 15px;
+  /* auto right margin absorbs the free space, pushing the nav to the right edge when
+     it shares this line — and leaves the nav flush-left once it wraps below. */
+  margin: 0 auto 0 15px;
+  /* tighten the line box so the title text centers on the middle of the logo, not the top */
+  line-height: 1;
 }
 
 .top-bar-title a {
@@ -510,10 +513,9 @@ button::-moz-focus-inner, input[type=reset]::-moz-focus-inner, input[type=submit
      overflow-x is a safety net for the very narrowest phones (swipe instead of wrap). */
   .topnav {
     flex-basis: 100%;
-    margin-left: 0;
     padding-right: 0;
     flex-wrap: nowrap;
-    justify-content: center;
+    justify-content: flex-start; /* nav is on its own line here, so align it left */
     gap: clamp(2px, 1vw, 10px);
     overflow-x: auto;
   }
