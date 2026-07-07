@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><title>e2e</title></head>
+  <body>
+    <pre id="out">running…</pre>
+    <script type="module">
+      import { decodeToRgb, rgbaToPngUrl, invertRgb } from '../static/js/image-io.js';
+      import { extractPalette, transferPalette } from '../static/js/palette-core.js';
+      import { renderPaletteCard } from '../static/js/palette-card.js';
+      import { isGpuTransferSupported, transferPaletteGPU } from '../static/js/gpu-transfer.js';
+
+      const results = [];
+      const ok = (n, c, x = '') => results.push(`${c ? 'PASS' : 'FAIL'} :: ${n}${x ? ' -- ' + x : ''}`);
+
+      // Build a real image Blob the same way a file upload produces one (PNG bytes),
+      // so decodeToRgb exercises its true createImageBitmap -> getImageData path.
+      function makeImageBlob(w, h, painter) {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        painter(ctx, w, h);
+        return new Promise((res) => c.toBlob(res, 'image/png'));
+      }
+
+      try {
+        // A "palette" image: 4 solid colour quadrants.
+        const palBlob = await makeImageBlob(80, 80, (ctx) => {
+          ctx.fillStyle = '#dc1414'; ctx.fillRect(0, 0, 40, 40);
+          ctx.fillStyle = '#1414dc'; ctx.fillRect(40, 0, 40, 40);
+          ctx.fillStyle = '#14b414'; ctx.fillRect(0, 40, 40, 40);
+          ctx.fillStyle = '#f0f0f0'; ctx.fillRect(40, 40, 40, 40);
+        });
+
+        const pal = await decodeToRgb(palBlob);
+        ok('decode Blob to RGB', pal.width === 80 && pal.height === 80 && pal.rgb.length === 80 * 80 * 3,
+          `${pal.width}x${pal.height}`);
+
+        // Extract 4 colours — should recover the four quadrant colours.
+        const { centroids } = extractPalette(pal.rgb, pal.width, pal.height, { k: 4, seed: 0 });
+        ok('extract 4-colour palette', centroids.length === 12);
+        const set = new Set();
+        for (let c = 0; c < 4; c++) set.add(`${centroids[c*3]},${centroids[c*3+1]},${centroids[c*3+2]}`);
+        ok('recovers 4 distinct colours', set.size === 4, [...set].join(' | '));
+
+        // Render the palette card; k<100 => 1200x1200.
+        const card = await renderPaletteCard(centroids);
+        ok('palette card is 1200x1200', card.canvas.width === 1200 && card.canvas.height === 1200,
+          `${card.canvas.width}x${card.canvas.height}`);
+        ok('palette card yields blob url', typeof card.url === 'string' && card.url.startsWith('blob:'));
+
+        // A "target" image with a gradient, then transfer the palette onto it.
+        const tgtBlob = await makeImageBlob(120, 90, (ctx, w, h) => {
+          const g = ctx.createLinearGradient(0, 0, w, h);
+          g.addColorStop(0, '#ff0000'); g.addColorStop(0.5, '#00ff00'); g.addColorStop(1, '#0000ff');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        });
+        const tgt = await decodeToRgb(tgtBlob);
+        const { pixels } = transferPalette(tgt.rgb, centroids, { space: 'rgb' });
+        ok('transfer output size matches target', pixels.length === tgt.width * tgt.height * 4,
+          `${tgt.width}x${tgt.height}`);
+
+        let offPalette = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (!set.has(`${pixels[i]},${pixels[i+1]},${pixels[i+2]}`)) offPalette++;
+        }
+        ok('all output pixels are palette colours', offPalette === 0, `offPalette=${offPalette}`);
+
+        const url = await rgbaToPngUrl(pixels, tgt.width, tgt.height);
+        ok('encodes output PNG url', typeof url === 'string' && url.startsWith('blob:'));
+
+        // Invert round-trips.
+        const before = pal.rgb[0];
+        const inv = invertRgb(Float32Array.from(pal.rgb));
+        ok('invert flips channel', inv[0] === 255 - before, `${before} -> ${inv[0]}`);
+
+        // CIELAB extraction path on a real decoded image.
+        const labC = extractPalette(pal.rgb, pal.width, pal.height, { k: 4, seed: 0, space: 'lab' }).centroids;
+        ok('CIELAB extraction valid', labC.length === 12 && Array.from(labC).every((v) => v >= 0 && v <= 255));
+
+        // GPU vs CPU transfer parity (skips if WebGL2 is unavailable in this env).
+        if (isGpuTransferSupported()) {
+          for (const space of ['rgb', 'lab']) {
+            const cpu = transferPalette(tgt.rgb, centroids, { space }).pixels;
+            const gpu = transferPaletteGPU(tgt.rgb, tgt.width, tgt.height, centroids, { space });
+            ok(`GPU transfer size matches (${space})`, gpu.length === cpu.length);
+            let identical = 0, maxDiff = 0, off = 0;
+            const total = cpu.length / 4;
+            for (let i = 0; i < cpu.length; i += 4) {
+              const same = gpu[i] === cpu[i] && gpu[i+1] === cpu[i+1] && gpu[i+2] === cpu[i+2];
+              if (same) identical++;
+              maxDiff = Math.max(maxDiff, Math.abs(gpu[i]-cpu[i]), Math.abs(gpu[i+1]-cpu[i+1]), Math.abs(gpu[i+2]-cpu[i+2]));
+              if (!set.has(`${gpu[i]},${gpu[i+1]},${gpu[i+2]}`)) off++;
+            }
+            const pct = identical / total;
+            // Quantized output: the few pixels that flip at a colour boundary (due
+            // to shader-vs-CPU float precision) differ by a whole palette step, so
+            // channel maxDiff is meaningless. Parity = high assignment agreement.
+            ok(`GPU matches CPU assignment (${space})`, pct >= 0.99,
+              `identical=${(pct*100).toFixed(2)}% maxDiff=${maxDiff}`);
+            ok(`GPU output uses only palette colours (${space})`, off === 0, `off=${off}`);
+          }
+        } else {
+          ok('GPU parity (skipped: no WebGL2)', true);
+        }
+      } catch (err) {
+        ok('pipeline ran without throwing', false, err && err.message ? err.message : String(err));
+      }
+
+      const failed = results.filter((r) => r.startsWith('FAIL')).length;
+      const passed = results.length - failed;
+      for (const r of results) console.log('E2E_RESULT ' + r);
+      document.getElementById('out').textContent =
+        results.join('\n') + `\n${passed} passed, ${failed} failed`;
+      document.title = failed === 0 ? 'ALL_TESTS_PASSED' : 'TESTS_FAILED_' + failed;
+      // Beacon the result to the server so the test runner can read it from the
+      // access log (robust against headless snapshot timing).
+      const firstFail = results.find((r) => r.startsWith('FAIL')) || '';
+      new Image().src =
+        '/__RESULT__/p' + passed + '_f' + failed +
+        '?first=' + encodeURIComponent(firstFail.slice(0, 250)) + '&t=' + Date.now();
+    </script>
+  </body>
+</html>

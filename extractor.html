@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Palette Extractor - ColorConverter.ai</title>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-LWSFGEX94P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-LWSFGEX94P');
+    </script>
+
+    <link rel="stylesheet" type="text/css" href="static/styles/98.css" />
+    <link rel="icon" href="static/favicon.ico" />
+  </head>
+
+  <body ontouchstart>
+    <header class="top-bar">
+      <img src="static/transparent_logo_gif.gif" alt="ColorConverter.ai logo" class="top-bar-logo" />
+      <h1 class="top-bar-title"><a href="index.html">ColorConverter.ai</a></h1>
+
+      <nav class="topnav">
+        <a href="index.html" class="home">Home</a>
+        <a href="extractor.html" class="extractor active">Palette Extractor</a>
+        <a href="transfer.html" class="transfer">Palette Transfer</a>
+        <a href="about.html" class="about">About</a>
+      </nav>
+    </header>
+
+    <div id="content">
+      <hr />
+      <main>
+        <h1 class="page-title">Extract color palettes from target image</h1>
+        <div class="Row">
+          <div class="column">
+            <div class="window">
+              <div class="title-bar">
+                <div class="title-bar-controls">
+                  <img src="static/output_icon.png" class="title-bar-icon" alt="" />
+                </div>
+                <div class="title-bar-text">Upload Image</div>
+                <div class="title-bar-controls">
+                  <button aria-label="Help" onclick="location.href='about.html'"></button>
+                  <button aria-label="Close"></button>
+                </div>
+              </div>
+              <div class="window-body">
+                <div id="extraction-display-image" class="window-image" role="img" aria-label="Uploaded image preview"></div>
+              </div>
+              <div class="window-bottom">
+                <input type="file" id="extraction-image-input" accept="image/jpeg, image/png, image/jpg" />
+                <button type="button" id="invert-extraction">Invert Palette Image</button>
+                <h3>Number of colors to extract from image:</h3>
+                <input id="k_slider" class="k-slider" type="range" value="20" min="2" max="30" name="k_value_extractor" />
+                <p id="k_disp">20</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="column">
+            <img src="static/arrow.svg" class="flow-arrow" alt="conversion arrow" />
+          </div>
+
+          <div class="column">
+            <div class="window">
+              <div class="title-bar">
+                <div class="title-bar-controls">
+                  <img src="static/palette_icon.png" class="title-bar-icon" alt="" />
+                </div>
+                <div class="title-bar-text">Extracted Palette</div>
+                <div class="title-bar-controls">
+                  <button aria-label="Help" onclick="location.href='about.html'"></button>
+                  <button aria-label="Close"></button>
+                </div>
+              </div>
+              <div class="window-body">
+                <a id="output-display-link">
+                  <div id="output-display-image" class="window-image" role="img" aria-label="Extracted palette"></div>
+                </a>
+              </div>
+              <div class="window-bottom">
+                <button type="button" id="extract-btn">Extract</button>
+                <button type="button" id="download-btn" disabled>Download</button>
+                <p id="status" class="status-message" style="display: none"></p>
+                <form action="transfer.html">
+                  <input type="submit" value="Apply Palette to Another Image" />
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2022 ColorConverter.ai</div>
+        <a href="about.html" class="b-button">
+          <img src="static/faq.svg" class="iconicon" alt="" />
+          <span class="b-button-label">&nbsp;About&nbsp;</span>
+        </a>
+      </div>
+    </footer>
+
+    <script type="module" src="static/js/extractor.js"></script>
+  </body>
+</html>

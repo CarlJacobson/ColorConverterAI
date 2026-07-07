@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColorConverter core tests</title>
+  </head>
+  <body>
+    <pre id="out">running…</pre>
+    <script type="module">
+      import {
+        extractPalette,
+        transferPalette,
+        validateK,
+        rgbToLab,
+        labToRgb,
+        rgbToHex,
+      } from '../static/js/palette-core.js';
+
+      const results = [];
+      const ok = (name, cond, extra = '') =>
+        results.push(`${cond ? 'PASS' : 'FAIL'} — ${name}${extra ? ' :: ' + extra : ''}`);
+
+      // Build a synthetic 2-colour image (red / blue), 40x40.
+      function twoColorImage(w = 40, h = 40) {
+        const rgb = new Float32Array(w * h * 3);
+        for (let i = 0; i < w * h; i++) {
+          const o = i * 3;
+          if (i % 2 === 0) { rgb[o] = 220; rgb[o + 1] = 20; rgb[o + 2] = 20; }
+          else { rgb[o] = 20; rgb[o + 1] = 20; rgb[o + 2] = 220; }
+        }
+        return { rgb, w, h };
+      }
+
+      // 1. validateK clamps like the Python version.
+      ok('validateK clamps high', validateK(500) === 200);
+      ok('validateK clamps low', validateK(1) === 2);
+      ok('validateK default on junk', validateK('abc') === 20);
+
+      // 2. CIELAB round-trip stays close.
+      {
+        const lab = new Float64Array(3);
+        const back = new Float64Array(3);
+        let maxErr = 0;
+        for (const [r, g, b] of [[128, 64, 200], [255, 255, 255], [0, 0, 0], [10, 240, 130]]) {
+          rgbToLab(r, g, b, lab, 0);
+          labToRgb(lab[0], lab[1], lab[2], back, 0);
+          maxErr = Math.max(maxErr, Math.abs(back[0] - r), Math.abs(back[1] - g), Math.abs(back[2] - b));
+        }
+        ok('CIELAB round-trip within 2', maxErr <= 2, 'maxErr=' + maxErr);
+      }
+
+      // 3. Extraction on a 2-colour image with k=2 recovers red-ish and blue-ish.
+      {
+        const { rgb, w, h } = twoColorImage();
+        const { centroids } = extractPalette(rgb, w, h, { k: 2, seed: 0 });
+        ok('k=2 yields 2 centroids', centroids.length === 6);
+        const cols = [
+          [centroids[0], centroids[1], centroids[2]],
+          [centroids[3], centroids[4], centroids[5]],
+        ];
+        const hasRed = cols.some((c) => c[0] > 150 && c[2] < 100);
+        const hasBlue = cols.some((c) => c[2] > 150 && c[0] < 100);
+        ok('recovers a red centroid', hasRed, JSON.stringify(cols));
+        ok('recovers a blue centroid', hasBlue, JSON.stringify(cols));
+      }
+
+      // 4. Determinism: same input+seed => identical centroids.
+      {
+        const { rgb, w, h } = twoColorImage(64, 64);
+        const a = extractPalette(rgb, w, h, { k: 8, seed: 0 }).centroids;
+        const b = extractPalette(rgb, w, h, { k: 8, seed: 0 }).centroids;
+        let same = a.length === b.length;
+        for (let i = 0; same && i < a.length; i++) same = a[i] === b[i];
+        ok('deterministic for same seed', same);
+      }
+
+      // 5. Edge case: k greater than number of pixels shouldn't crash / NaN.
+      {
+        const rgb = new Float32Array([10, 20, 30, 200, 100, 50]); // 2 pixels
+        const { centroids } = extractPalette(rgb, 2, 1, { k: 20, seed: 0 });
+        const finite = Array.from(centroids).every((v) => Number.isFinite(v) && v >= 0 && v <= 255);
+        ok('k>pixels: no NaN, clamped count', finite && centroids.length <= 20 * 3, 'len=' + centroids.length);
+      }
+
+      // 6. Transfer maps pixels onto palette colours only.
+      {
+        const target = new Float32Array([255, 0, 0, 0, 0, 255, 250, 5, 5]); // 3 pixels
+        const palette = new Uint8Array([200, 20, 20, 20, 20, 220]); // red, blue
+        const { pixels } = transferPalette(target, palette, { space: 'rgb' });
+        const paletteSet = new Set(['200,20,20', '20,20,220']);
+        let allMapped = true;
+        for (let i = 0; i < 3; i++) {
+          const key = `${pixels[i * 4]},${pixels[i * 4 + 1]},${pixels[i * 4 + 2]}`;
+          if (!paletteSet.has(key)) allMapped = false;
+        }
+        ok('transfer output uses only palette colours', allMapped);
+        ok('transfer sets opaque alpha', pixels[3] === 255 && pixels[7] === 255);
+      }
+
+      // 7. Lab-space extraction also runs and returns valid RGB.
+      {
+        const { rgb, w, h } = twoColorImage();
+        const { centroids } = extractPalette(rgb, w, h, { k: 2, seed: 0, space: 'lab' });
+        const valid = Array.from(centroids).every((v) => Number.isFinite(v) && v >= 0 && v <= 255);
+        ok('lab-space extraction valid', valid && centroids.length === 6);
+      }
+
+      // 8. rgbToHex formatting.
+      ok('rgbToHex pads', rgbToHex(1, 2, 3) === '#010203');
+
+      // 9. Histogram clamps k to the number of distinct colors (a 2-colour image
+      //    can't yield more than 2 centroids no matter how big k is).
+      {
+        const { rgb, w, h } = twoColorImage(32, 32);
+        const { centroids } = extractPalette(rgb, w, h, { k: 8, seed: 0 });
+        ok('k clamps to distinct colours', centroids.length === 6, 'len=' + centroids.length);
+      }
+
+      // 10. Worker round-trip (exercises palette-worker.js + module worker). Uses a
+      //     4-colour image so k=4 is actually achievable.
+      function fourColorImage(w = 32, h = 32) {
+        const rgb = new Float32Array(w * h * 3);
+        const cols = [[220, 20, 20], [20, 20, 220], [20, 180, 20], [230, 230, 230]];
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const q = (x < w / 2 ? 0 : 1) + (y < h / 2 ? 0 : 2);
+            const o = (y * w + x) * 3;
+            rgb[o] = cols[q][0]; rgb[o + 1] = cols[q][1]; rgb[o + 2] = cols[q][2];
+          }
+        }
+        return { rgb, w, h };
+      }
+      await new Promise((resolve) => {
+        const worker = new Worker('../static/js/palette-worker.js', { type: 'module' });
+        const { rgb, w, h } = fourColorImage(32, 32);
+        const buf = rgb.slice().buffer;
+        worker.onmessage = (e) => {
+          if (e.data.type === 'result') {
+            const c = new Uint8Array(e.data.centroids);
+            ok('worker extract returns centroids', c.length === 12 && e.data.k === 4);
+            worker.terminate();
+            resolve();
+          } else if (e.data.type === 'error') {
+            ok('worker extract returns centroids', false, e.data.message);
+            worker.terminate();
+            resolve();
+          }
+        };
+        worker.onerror = (err) => { ok('worker extract returns centroids', false, err.message); resolve(); };
+        worker.postMessage({ id: 1, type: 'extract', rgb: buf, width: w, height: h, k: 4, seed: 0, space: 'rgb' }, [buf]);
+      });
+
+      const passed = results.filter((r) => r.startsWith('PASS')).length;
+      const failed = results.filter((r) => r.startsWith('FAIL')).length;
+      const summary = `\n${passed} passed, ${failed} failed`;
+      document.getElementById('out').textContent = results.join('\n') + summary;
+      document.title = failed === 0 ? 'ALL_TESTS_PASSED' : 'TESTS_FAILED_' + failed;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About - How To Use ColorConverter.ai and FAQ</title>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-LWSFGEX94P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-LWSFGEX94P');
+    </script>
+
+    <link rel="stylesheet" type="text/css" href="static/styles/98.css" />
+    <link rel="icon" href="static/favicon.ico" />
+  </head>
+
+  <body ontouchstart>
+    <header class="top-bar">
+      <img src="static/transparent_logo_gif.gif" alt="ColorConverter.ai logo" class="top-bar-logo" />
+      <h1 class="top-bar-title"><a href="index.html">ColorConverter.ai</a></h1>
+
+      <nav class="topnav">
+        <a href="index.html" class="home">Home</a>
+        <a href="extractor.html" class="extractor">Palette Extractor</a>
+        <a href="transfer.html" class="transfer">Palette Transfer</a>
+        <a href="about.html" class="about active">About</a>
+      </nav>
+    </header>
+
+    <div id="content">
+      <hr />
+      <div class="prose">
+        <h1>About</h1>
+        <h2>FAQ</h2>
+        <h3>What value should I use for the number of colors to extract?</h3>
+        <p>Generally, higher values of colors to extract are good to use when working with realistic photos or paintings with a high total amount of colors in the image. Lower number of colors to extract are good for low dynamic range images such as cartoons, digitally generated images, etc. There is no hard rule for the number of colors you should extract from an image. You should play around with the slider to get an idea of what looks good for your use case.</p>
+        <h3>Why do my output images look bad?</h3>
+        <p>Output images can look bad for a variety of reasons. First thing to check would be the number of colors to extract.</p>
+        <h3>Are my images uploaded anywhere?</h3>
+        <p>No. All processing happens locally in your web browser using JavaScript. Your images are never sent to a server.</p>
+        <h1>Definitions</h1>
+        <h2>Target Image</h2>
+        <p>The Target Image is the image that you want to change the color palette on. It can be any jpg or png file. Generally works best with cartoon/animated images with limited color ranges</p>
+        <h2>Palette Image</h2>
+        <p>The Image you want to extract your color palette from. It can be any jpg or png file. Generally works best with photographs or paintings with a large range of colors. The palette image can be used with either the Palette Extractor, or Palette Transfer function. The Palette Extractor tool takes in the palette image, and outputs a downloadable png file with the color palette of the image with the associated hex codes. This could be useful for graphic design or general reference. If you decide you want to apply the extracted palette to another image, you can use the "Palette Transfer" link in the top nav. The image and number of colors to extract should be saved across page changes.</p>
+        <h1>How does it work?</h1>
+        <p>ColorConverter.AI converts images using a Kmeans unsupervised machine learning algorithm. An image is comprised of its individual pixels. Each individual pixel has a Red, Green, and Blue (RGB) value ranging from 0 to 255. These RGB values can be combined in any proportion to make virtually any color. The RGB values can be thought of as coordinates in a 3d &ldquo;color space&rdquo;, with the RGB values on X, Y, and Z axes respectively. The k means algorithm takes both a list of the palette image RGB values and &ldquo;number of colors to extract&rdquo; (k) as its input values. It then iteratively calculates the &ldquo;k&rdquo; points in the 3d color space that best summarize the image's colors. The final list of k number of coordinates (&ldquo;centroids&rdquo;) is then stored as the color palette of that image</p>
+        <p>To apply that color palette to another image, each pixel in the target image is iterated over. The distance between that point, and each centroid is then calculated. The pixel is assigned to whichever centroid it is closest to.</p>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2022 ColorConverter.ai</div>
+        <a href="about.html" class="b-button">
+          <img src="static/faq.svg" class="iconicon" alt="" />
+          <span class="b-button-label">&nbsp;About&nbsp;</span>
+        </a>
+      </div>
+    </footer>
+  </body>
+</html>
