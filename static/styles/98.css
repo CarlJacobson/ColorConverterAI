@@ -323,6 +323,13 @@ button::-moz-focus-inner, input[type=reset]::-moz-focus-inner, input[type=submit
   cursor: pointer;
 }
 
+/* Feedback while a file is dragged over an uploadable preview. */
+.window-image.is-dragover {
+  outline: 2px dashed #333;
+  outline-offset: -4px;
+  filter: brightness(1.08);
+}
+
 .home-image {
   width: min(28vw, 250px);
   height: auto;

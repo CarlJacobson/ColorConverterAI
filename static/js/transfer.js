@@ -43,7 +43,9 @@ function reportSlot(err) {
   else setStatus(status, '');
 }
 
-setupKSlider(kSlider, $('k_disp'));
+// Own key for this page; fall back to the extractor page's value (clamped) so the
+// choice carries across navigation. 'k_value' is the pre-split legacy key.
+setupKSlider(kSlider, $('k_disp'), 'k_value_transfer', ['k_value_extractor', 'k_value']);
 
 function sendableBuffer(px, slot) {
   const copy = px === slot.rgb ? px.slice() : px;
@@ -60,8 +62,12 @@ $('flip-btn').addEventListener('click', () => {
   const tb = targetSlot.display.style.backgroundImage;
   targetSlot.display.style.backgroundImage = paletteSlot.display.style.backgroundImage;
   paletteSlot.display.style.backgroundImage = tb;
-  targetSlot._applyInvertFilter();
-  paletteSlot._applyInvertFilter();
+  // Keep each preview's invert filter *and* its dataset flag in sync with the
+  // swapped `inverted` state (the dataset flag isn't covered by the loop above).
+  for (const s of [targetSlot, paletteSlot]) {
+    s.display.dataset.inverted = s.inverted ? '1' : '0';
+    s._applyInvertFilter();
+  }
 });
 
 async function onConvert() {

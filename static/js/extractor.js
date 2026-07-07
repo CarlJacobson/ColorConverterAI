@@ -32,7 +32,9 @@ const slot = new ImageSlot({
   },
 });
 
-setupKSlider(kSlider, $('k_disp'));
+// Own key for this page; fall back to the transfer page's value (clamped) so the
+// choice carries across navigation. 'k_value' is the pre-split legacy key.
+setupKSlider(kSlider, $('k_disp'), 'k_value_extractor', ['k_value_transfer', 'k_value']);
 
 // Transfer a copy of the pixel buffer so the slot keeps its own data intact.
 function sendableBuffer(px) {

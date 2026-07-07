@@ -19,6 +19,13 @@ See [METHODOLOGY.md](METHODOLOGY.md) for rationale.
       cheap stride subsample; an area-average thumbnail would be slightly higher
       quality (it only affects palette-finding, so impact is small).
 
+## 🟢 UX / features
+
+- [ ] **Copyable hex codes.** The extracted palette is only available as a rendered
+      PNG — there's no way to grab the hex values as text. Render the palette as a
+      row of swatches with click-to-copy hex labels (reuse `rgbToHex` from
+      `palette-core.js`), alongside the existing downloadable card.
+
 ## 🟢 Performance
 
 - [ ] **GPU k-means extraction.** The transfer step now runs on the GPU, but

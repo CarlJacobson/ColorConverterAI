@@ -71,6 +71,7 @@ export class ImageSlot {
       // Clicking the preview area opens the file browser, same as the input itself.
       this.display.classList.add('is-uploadable');
       this.display.addEventListener('click', () => input.click());
+      this._wireDragAndDrop();
     }
     if (invertButton) invertButton.addEventListener('click', () => this.toggleInvert());
 
@@ -98,6 +99,36 @@ export class ImageSlot {
     } catch (err) {
       this.onChange(this, err);
     }
+  }
+
+  // Drag-and-drop onto the preview area, mirroring a file-picker selection.
+  _wireDragAndDrop() {
+    const el = this.display;
+    const stop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    ['dragenter', 'dragover'].forEach((type) =>
+      el.addEventListener(type, (e) => {
+        stop(e);
+        e.dataTransfer.dropEffect = 'copy';
+        el.classList.add('is-dragover');
+      })
+    );
+    ['dragleave', 'dragend'].forEach((type) =>
+      el.addEventListener(type, (e) => {
+        stop(e);
+        el.classList.remove('is-dragover');
+      })
+    );
+    el.addEventListener('drop', (e) => {
+      stop(e);
+      el.classList.remove('is-dragover');
+      const file = e.dataTransfer?.files?.[0];
+      // Ignore non-image drops (e.g. dragged text/links); decode failures still
+      // surface via _onFile's onChange error path.
+      if (file && file.type.startsWith('image/')) this._onFile(file);
+    });
   }
 
   _setPreviewFromBlob(blob) {
@@ -194,18 +225,42 @@ export class ImageSlot {
 // Small helpers
 // ---------------------------------------------------------------------------
 
-/** Wire the k slider to its readout and persist the value safely. */
-export function setupKSlider(slider, readout, storageKey = 'k_value') {
+/**
+ * Wire the k slider to its readout and persist the value safely.
+ *
+ * Each page keeps its own `storageKey` (its slider range differs), but `fallbackKeys`
+ * lets a page seed from the other page's last value so the choice carries across
+ * navigation. Restored values are always clamped to this slider's own [min, max] so a
+ * value saved on a wider-range page (e.g. transfer's max=200) can never desync the
+ * readout from the thumb on a narrower one (e.g. extractor's max=30).
+ */
+export function setupKSlider(slider, readout, storageKey = 'k_value', fallbackKeys = []) {
+  const clamp = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    const min = Number(slider.min) || 0;
+    const max = Number(slider.max) || 100;
+    return String(Math.min(max, Math.max(min, Math.round(n))));
+  };
+
   let stored = null;
-  try {
-    stored = sessionStorage.getItem(storageKey);
-  } catch (_) {}
+  for (const key of [storageKey, ...fallbackKeys]) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (raw !== null) {
+        stored = clamp(raw);
+        if (stored !== null) break;
+      }
+    } catch (_) {}
+  }
+
   if (stored !== null) {
     slider.value = stored;
     readout.textContent = stored;
   } else {
     readout.textContent = slider.value;
   }
+
   slider.addEventListener('input', () => {
     readout.textContent = slider.value;
     try {
