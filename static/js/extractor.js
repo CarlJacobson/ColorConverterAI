@@ -6,6 +6,7 @@ import {
   setupKSlider,
   setStatus,
   setupOutputClose,
+  saveImage,
   progressLabel,
 } from './app-common.js';
 import { validateK } from './palette-core.js';
@@ -85,5 +86,5 @@ async function onExtract() {
 }
 
 extractBtn.addEventListener('click', onExtract);
-downloadBtn.addEventListener('click', () => outputLink.href && outputLink.click());
+downloadBtn.addEventListener('click', () => saveImage(outputLink.href, outputLink.download || 'palette.png'));
 setupOutputClose(outputDisplay, { link: outputLink, downloadButton: downloadBtn, status });

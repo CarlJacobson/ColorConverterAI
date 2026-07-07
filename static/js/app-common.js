@@ -251,6 +251,44 @@ export function setupOutputClose(display, { link, downloadButton, status } = {})
   });
 }
 
+// True on phones/tablets, where there's no "Downloads folder" and the native share
+// sheet ("Save Image" → Photos on iOS, "Save"/Gallery on Android) is the right target.
+// iPadOS reports a desktop UA, so also treat touch-capable "Macintosh" as iOS.
+function prefersShareSheet() {
+  const ua = navigator.userAgent || '';
+  const iOS = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  return iOS || /Android/.test(ua);
+}
+
+/**
+ * Save a rendered image. On mobile devices that can share files, this opens the
+ * native share sheet so the user can save straight to Photos/Gallery; everywhere
+ * else it falls back to a normal file download.
+ */
+export async function saveImage(url, filename) {
+  if (!url) return;
+  if (prefersShareSheet() && navigator.canShare) {
+    try {
+      const blob = await (await fetch(url)).blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return; // user saved (e.g. to Photos) or dismissed the sheet
+      }
+    } catch (err) {
+      // AbortError = user dismissed the sheet on purpose; don't then force a download.
+      if (err && err.name === 'AbortError') return;
+      // Any other failure falls through to the download fallback below.
+    }
+  }
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 const PROGRESS_LABELS = {
   init: 'Preparing…',
   clustering: 'Finding colors…',

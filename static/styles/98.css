@@ -493,10 +493,35 @@ button::-moz-focus-inner, input[type=reset]::-moz-focus-inner, input[type=submit
     width: min(92vw, 360px);
   }
 
+  /* Keep the logo + title on one line (the nav still wraps to its own line below);
+     scale the title down so it fits beside the gif. */
+  .top-bar-logo {
+    height: 44px;
+    flex: 0 0 auto;
+  }
+
+  .top-bar-title {
+    margin-left: 8px;
+    font-size: min(6.5vw, 1.6rem);
+    white-space: nowrap;
+  }
+
+  /* Nav takes its own full-width line and keeps all tabs on a single row.
+     overflow-x is a safety net for the very narrowest phones (swipe instead of wrap). */
   .topnav {
-    width: 100%;
+    flex-basis: 100%;
     margin-left: 0;
+    padding-right: 0;
+    flex-wrap: nowrap;
     justify-content: center;
+    gap: clamp(2px, 1vw, 10px);
+    overflow-x: auto;
+  }
+
+  .topnav a {
+    padding: 12px clamp(4px, 1.6vw, 14px);
+    font-size: clamp(10px, 3vw, 15px);
+    white-space: nowrap;
   }
 
   .b-button-label {
