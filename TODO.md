@@ -25,6 +25,13 @@ See [METHODOLOGY.md](METHODOLOGY.md) for rationale.
       PNG — there's no way to grab the hex values as text. Render the palette as a
       row of swatches with click-to-copy hex labels (reuse `rgbToHex` from
       `palette-core.js`), alongside the existing downloadable card.
+- [ ] **Installable PWA.** The app is already 100% client-side, so a
+      `manifest.webmanifest` + a cache-first service worker would make it installable
+      and fully offline-capable — reinforcing the "nothing is uploaded" story and
+      speeding up repeat loads (fonts especially). Needs 192/512px icons, a
+      service-worker update/versioning strategy, and care to exclude the `tests/`
+      harnesses from the cache. `theme-color` and share-sheet saving are already in
+      place.
 
 ## 🟢 Performance
 
